@@ -18,19 +18,6 @@ import tables
 import sequtils
 import strutils
 import pegs
-import macros
-
-# header shortcut macro
-proc genHeaderAccerror(typeName: string, symbolName: string, headerName: string): string {.compileTime.} =
-  let useHeaderName =
-    if headerName is "": capitalizeAscii(symbolName)
-    else: headerName
-  let code1 = "proc $1*(message: $2): string = message.headers[\"$3\"]\n" % [symbolName, typeName, useHeaderName]
-  let code2 = "proc `$1=`*(message: $2, value: string): string {.discardable.} = message.headers[\"$3\"] = value\n" % [symbolName, typeName, useHeaderName]
-  return code1 & code2
-
-macro defineHeaderAccessor(typ: typed, symbolNameType: string, headerNameType: string = ""): untyped =
-  return parseStmt(genHeaderAccerror($typ, symbolNameType.strVal, headerNameType.strVal))
 
 const crlf = "\x0d\x0a"
 
@@ -108,9 +95,12 @@ proc `$`*(request: Request): string =
   let requestLine = "$1 $2/$3" % [$request.`method`, $request.protocol, request.version] & crlf
   return requestLine & request.headers.toShioriString & crlf
 
-defineHeaderAccessor(Request, "id", "ID")
-defineHeaderAccessor(Request, "status")
-defineHeaderAccessor(Request, "baseId")
+proc id*(request: Request): string = request.headers["ID"] ## ID header
+proc `id=`*(request: Request, value: string): string = request.headers["ID"] = value ## ID header
+proc status*(request: Request): string = request.headers["Status"] ## Status header
+proc `status=`*(request: Request, value: string): string = request.headers["Status"] = value ## Status header
+proc baseId*(request: Request): string = request.headers["BaseId"] ## BaseId header
+proc `baseId=`*(request: Request, value: string): string = request.headers["BaseId"] = value ## BaseId header
 
 type Response* = ref object
   ## SHIORI response message
@@ -134,27 +124,30 @@ type ErrorLevel* = enum
   error
   critical
 
-defineHeaderAccessor(Response, "value")
-defineHeaderAccessor(Response, "marker")
-defineHeaderAccessor(Response, "requestCharset")
-proc errorLevel*(request: Response): ErrorLevel = parseEnum[ErrorLevel](request.headers["ErrorLevel"])
-proc `errorLevel=`*(request: Response, value: ErrorLevel): string = request.headers["ErrorLevel"] = $value
-defineHeaderAccessor(Response, "errorDescription")
+proc value*(response: Response): string = response.headers["Value"] ## Value header
+proc `value=`*(response: Response, value: string): string = response.headers["Value"] = value ## Value header
+proc marker*(response: Response): string = response.headers["Marker"] ## Marker header
+proc `marker=`*(response: Response, value: string): string = response.headers["Marker"] = value ## Marker header
+proc requestCharset*(response: Response): string = response.headers["RequestCharset"] ## RequestCharset header
+proc `requestCharset=`*(response: Response, value: string): string = response.headers["RequestCharset"] = value ## RequestCharset header
+proc errorLevel*(response: Response): ErrorLevel = parseEnum[ErrorLevel](response.headers["ErrorLevel"]) # ErrorLevel header
+proc `errorLevel=`*(response: Response, value: ErrorLevel): string = response.headers["ErrorLevel"] = $value # ErrorLevel header
+proc errorDescription*(response: Response): string = response.headers["ErrorDescription"] ## ErrorDescription header
+proc `errorDescription=`*(response: Response, value: string): string = response.headers["ErrorDescription"] = value ## ErrorDescription header
 
 type SecurityLevel* = enum
   ## SHIORI SecurityLevel header value
   local
   external
 
-defineHeaderAccessor(Request, "charset")
-defineHeaderAccessor(Response, "charset")
-defineHeaderAccessor(Request, "sender")
-defineHeaderAccessor(Response, "sender")
-proc securityLevel*(request: Response): SecurityLevel = parseEnum[SecurityLevel](request.headers["SecurityLevel"])
-proc `securityLevel=`*(request: Response, value: SecurityLevel): string = request.headers["SecurityLevel"] = $value
+proc charset*(message: Request or Response): string = message.headers["Charset"] ## Charset header
+proc `charset=`*(message: Request or Response, value: string): string = message.headers["Charset"] = value ## Charset header
+proc sender*(message: Request or Response): string = message.headers["Sender"] ## Sender header
+proc `sender=`*(message: Request or Response, value: string): string = message.headers["Sender"] = value ## Sender header
+proc securityLevel*(message: Request or Response): SecurityLevel = parseEnum[SecurityLevel](message.headers["SecurityLevel"]) # SecurityLevel header
+proc `securityLevel=`*(message: Request or Response, value: SecurityLevel): string = message.headers["SecurityLevel"] = $value # SecurityLevel header
 
-
-proc reference*(request: Request or Response, index: int): string = request.headers["Reference" & $index] ## Reference* accessor
+proc reference*(message: Request or Response, index: int): string = message.headers["Reference" & $index] ## Reference* header
 
 # separated value helper
 
