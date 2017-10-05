@@ -1,3 +1,19 @@
+## SHIORI Protocol Parser/Builder
+##
+## This is released under `MIT License <https://narazaka.net/license/MIT?2017>`_.
+##
+## .. code-block:: Nim
+##
+##    import shiori
+##
+##    let request = parseRequest("GET SHIORI/3.0\nCharset: UTF-8\n\n")
+##    echo $request
+##
+##    var response = newResponse(status: Status.OK, headers: {"Value": "foo"}.newOrderedTable)
+##    response.version = "3.0"
+##    response.charset = "UTF-8"
+##    echo $response
+
 import tables
 import sequtils
 import strutils
@@ -21,20 +37,22 @@ const crlf = "\x0d\x0a"
 # containers
 
 type Protocol* = enum
+    ## SHIORI protocol
     SHIORI
 
 type Method* = enum
-    GET
-    NOTIFY
-    GET_Version
-    GET_Sentence
-    GET_Word
-    GET_Status
-    TEACH
-    GET_String
-    NOTIFY_OwnerGhostName
-    NOTIFY_OtherGhostName
-    TRANSLATE_Sentence
+    ## SHIORI request method
+    GET ## SHIORI/3.0 GET
+    NOTIFY ## SHIORI/3.0 NOTIFY
+    GET_Version ## SHIORI/2.x GET Version
+    GET_Sentence ## SHIORI/2.x GET Sentence
+    GET_Word ## SHIORI/2.x GET Word
+    GET_Status ## SHIORI/2.x GET Status
+    TEACH ## SHIORI/2.x TEACH
+    GET_String ## SHIORI/2.x GET String
+    NOTIFY_OwnerGhostName ## SHIORI/2.x NOTIFY OwnerGhostName
+    NOTIFY_OtherGhostName ## SHIORI/2.x NOTIFY OtherGhostName
+    TRANSLATE_Sentence ## SHIORI/2.x TRANSLATE Sentence
 
 proc `$`*(meth: Method): string =
     case meth:
@@ -51,12 +69,13 @@ proc `$`*(meth: Method): string =
         of TRANSLATE_Sentence: return "TRANSLATE Sentence"
 
 type Status* = enum
-    OK = 200
-    No_Content = 204
-    Not_Enough = 311
-    Advice = 312
-    Bad_Request = 400
-    Internal_Server_Error = 500
+    ## SHIORI response status
+    OK = 200 ## 200 OK
+    No_Content = 204 ## 204 No Content
+    Not_Enough = 311 ## 311 Not Enough
+    Advice = 312 ## 312 Advice
+    Bad_Request = 400 ## 400 Bad Request
+    Internal_Server_Error = 500 ## 500 Internal Server Error
 
 proc `$`*(status: Status): string =
     case status:
@@ -67,7 +86,7 @@ proc `$`*(status: Status): string =
         of Bad_Request: return "Bad Request"
         of Internal_Server_Error: return "Internal Server Error"
 
-type Headers* = OrderedTableRef[string, string]
+type Headers* = OrderedTableRef[string, string] ## SHIORI message headers
 
 proc toShioriString*(headers: Headers): string =
     var headerLines: seq[string] = @[]
@@ -76,6 +95,7 @@ proc toShioriString*(headers: Headers): string =
     return headerLines.join("")
 
 type Request* = ref object
+    ## SHIORI request message
     `method`*: Method
     protocol*: Protocol
     version*: string
@@ -93,6 +113,7 @@ defineHeaderAccessor(Request, "status")
 defineHeaderAccessor(Request, "baseId")
 
 type Response* = ref object
+    ## SHIORI response message
     protocol*: Protocol
     version*: string
     status*: Status
@@ -106,6 +127,7 @@ proc `$`*(response: Response): string =
     return statusLine & response.headers.toShioriString & crlf
 
 type ErrorLevel* = enum
+    ## SHIORI ErrorLevel header value
     info
     notice
     warning
@@ -120,6 +142,7 @@ proc `errorLevel=`*(request: Response, value: ErrorLevel): string = request.head
 defineHeaderAccessor(Response, "errorDescription")
 
 type SecurityLevel* = enum
+    ## SHIORI SecurityLevel header value
     local
     external
 
@@ -130,20 +153,25 @@ defineHeaderAccessor(Response, "sender")
 proc securityLevel*(request: Response): SecurityLevel = parseEnum[SecurityLevel](request.headers["SecurityLevel"])
 proc `securityLevel=`*(request: Response, value: SecurityLevel): string = request.headers["SecurityLevel"] = $value
 
-proc reference*(request: Request or Response, index: int): string = request.headers["Reference" & $index]
+
+proc reference*(request: Request or Response, index: int): string = request.headers["Reference" & $index] ## Reference* accessor
 
 # separated value helper
 
 proc separated*(str: string, sep = "\x01"): seq[string] =
+    ## separate string into seq[string] for some header values
     return str.split(sep)
 
 proc separated2*(str: string, sep1 = "\x02", sep2 = "\x01"): seq[seq[string]] =
+    ## separate string into seq[seq[string]] for some header values
     return str.split(sep1).map(proc (chunk: string): seq[string] = chunk.split(sep2))
 
 proc combined*(list: seq[string], sep = "\x01"): string =
+    ## join seq[string] into string for some header values
     return list.join(sep)
 
 proc combined2*(list: seq[seq[string]], sep1 = "\x02", sep2 = "\x01"): string =
+    ## join seq[seq[string]] into string for some header values
     return list.map(proc (chunk: seq[string]): string = chunk.join(sep2)).join(sep1)
 
 # parser
@@ -192,6 +220,7 @@ value <- { .* }
 
 # pegsがキャプチャ上限20個とかいう謎の制限を設けてクソなので行ごと解釈にする
 proc parseRequest*(requestStr: string): Request =
+    ## SHIORI request parser
     var request = newRequest()
     var isRequestLine = true
     var emptyLineLen = 0
@@ -218,6 +247,7 @@ proc parseRequest*(requestStr: string): Request =
     return request
 
 proc parseResponse*(responseStr: string): Response =
+    ## SHIORI response parser
     var response = newResponse()
     var isStatusLine = true
     var emptyLineLen = 0
