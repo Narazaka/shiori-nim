@@ -22,7 +22,7 @@
 import tables
 import sequtils
 import strutils
-import pegs
+import nre
 
 const crlf = "\x0d\x0a"
 
@@ -198,29 +198,9 @@ value <- { [^\13\10]* }
 """)
 ]#
 
-let requestLinePeg = peg("""
-requestLine <- ^ method " " protocolVersion $
-method <- { "GET" / "NOTIFY" }
-protocolVersion <- protocol "/" version
-protocol <- { "SHIORI" }
-version <- { \d+ "." \d+ }
-""")
-
-let statusLinePeg = peg("""
-statusLine <- ^ protocolVersion " " status $
-protocolVersion <- protocol "/" version
-protocol <- { "SHIORI" }
-version <- { \d+ "." \d+ }
-status <- statusCode " " statusMessage
-statusCode <- { \d+ }
-statusMessage <- { .* }
-""")
-
-let headerLinePeg = peg("""
-headerLine <- ^ name ": " value $
-name <- { [A-Za-z0-9.]+ }
-value <- { .* }
-""")
+let requestLineRe = re"^(GET|NOTIFY) (SHIORI)/(\d+\.\d+)$"
+let statusLineRe = re"^(SHIORI)/(\d+\.\d+) (\d+) (.*)$"
+let headerLineRe = re"^([A-Za-z0-9.]+): (.*)$"
 
 # pegsがキャプチャ上限20個とかいう謎の制限を設けてクソなので行ごと解釈にする
 proc parseRequest*(requestStr: string): Request =
@@ -231,20 +211,25 @@ proc parseRequest*(requestStr: string): Request =
   var lineIndex = 0
   for line in requestStr.splitLines:
     if isRequestLine:
-      if line =~ requestLinePeg:
-        request.`method` = parseEnum[Method](matches[0])
-        request.protocol = parseEnum[Protocol](matches[1])
-        request.version = matches[2]
+      let res = line.match(requestLineRe)
+      if res.isSome:
+        let captures = res.get.captures
+        request.`method` = parseEnum[Method](captures[0])
+        request.protocol = parseEnum[Protocol](captures[1])
+        request.version = captures[2]
       else:
         raise newException(ValueError, "invalid request line: line $# [$#]" % [$lineIndex, line])
       isRequestLine = false
     else:
       if line.len() == 0:
         emptyLineLen += 1
-      elif line =~ headerLinePeg:
-        request.headers[matches[0]] = matches[1]
       else:
-        raise newException(ValueError, "invalid header line: line $# [$#]" % [$lineIndex, line])
+        let res = line.match(headerLineRe)
+        if res.isSome:
+          let captures = res.get.captures
+          request.headers[captures[0]] = captures[1]
+        else:
+          raise newException(ValueError, "invalid header line: line $# [$#]" % [$lineIndex, line])
     lineIndex += 1
   if emptyLineLen != 2:
     raise newException(ValueError, "message has wrong number of trailing crlf")
@@ -258,20 +243,25 @@ proc parseResponse*(responseStr: string): Response =
   var lineIndex = 0
   for line in responseStr.splitLines:
     if isStatusLine:
-      if line =~ statusLinePeg:
-        response.protocol = parseEnum[Protocol](matches[0])
-        response.version = matches[1]
-        response.status = Status(parseInt(matches[2]))
+      let res = line.match(statusLineRe)
+      if res.isSome:
+        let captures = res.get.captures
+        response.protocol = parseEnum[Protocol](captures[0])
+        response.version = captures[1]
+        response.status = Status(parseInt(captures[2]))
       else:
         raise newException(ValueError, "invalid status line: line $# [$#]" % [$lineIndex, line])
       isStatusLine = false
     else:
       if line.len() == 0:
         emptyLineLen += 1
-      elif line =~ headerLinePeg:
-        response.headers[matches[0]] = matches[1]
       else:
-        raise newException(ValueError, "invalid header line: line $# [$#]" % [$lineIndex, line])
+        let res = line.match(headerLineRe)
+        if res.isSome:
+          let captures = res.get.captures
+          response.headers[captures[0]] = captures[1]
+        else:
+          raise newException(ValueError, "invalid header line: line $# [$#]" % [$lineIndex, line])
     lineIndex += 1
   if emptyLineLen != 2:
     raise newException(ValueError, "message has wrong number of trailing crlf")
