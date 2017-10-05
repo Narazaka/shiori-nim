@@ -2,7 +2,15 @@
 
 SHIORI Protocol Parser/Builder for Nim lang
 
+## Install
+
+```
+nimble install shiori
+```
+
 ## Usage
+
+**[API Document](https://narazaka.github.io/shiori-nim/)**
 
 ```nim
 import shiori

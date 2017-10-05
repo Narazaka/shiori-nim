@@ -2,6 +2,11 @@
 ##
 ## This is released under `MIT License <https://narazaka.net/license/MIT?2017>`_.
 ##
+## - `Repository <https://github.com/Narazaka/shiori-nim>`_
+## - `API Document <https://narazaka.github.io/shiori-nim/>`_
+##
+## Example:
+##
 ## .. code-block:: Nim
 ##
 ##    import shiori
