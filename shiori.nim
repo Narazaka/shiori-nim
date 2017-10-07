@@ -93,7 +93,7 @@ type Request* = ref object
   version*: string
   headers*: Headers
 
-proc newRequest*(`method` = Method.GET, protocol = Protocol.SHIORI, version: string = nil, headers = newOrderedTable[string, string]()): Request =
+proc newRequest*(`method` = Method.GET, protocol = Protocol.SHIORI, version = "3.0", headers = newOrderedTable[string, string]()): Request =
   return Request(`method`: `method`, protocol: protocol, version: version, headers: headers)
 
 proc `$`*(request: Request): string =
@@ -101,11 +101,11 @@ proc `$`*(request: Request): string =
   return requestLine & request.headers.toShioriString & crlf
 
 proc id*(request: Request): string = request.headers["ID"] ## ID header
-proc `id=`*(request: Request, value: string): string = request.headers["ID"] = value ## ID header
+proc `id=`*(request: Request, value: string): string {.discardable.} = request.headers["ID"] = value ## ID header
 proc status*(request: Request): string = request.headers["Status"] ## Status header
-proc `status=`*(request: Request, value: string): string = request.headers["Status"] = value ## Status header
+proc `status=`*(request: Request, value: string): string {.discardable.} = request.headers["Status"] = value ## Status header
 proc baseId*(request: Request): string = request.headers["BaseId"] ## BaseId header
-proc `baseId=`*(request: Request, value: string): string = request.headers["BaseId"] = value ## BaseId header
+proc `baseId=`*(request: Request, value: string): string {.discardable.} = request.headers["BaseId"] = value ## BaseId header
 
 type Response* = ref object
   ## SHIORI response message
@@ -114,12 +114,17 @@ type Response* = ref object
   status*: Status
   headers*: Headers
 
-proc newResponse*(protocol = Protocol.SHIORI, version: string = nil, status = Status.OK, headers = newOrderedTable[string, string]()): Response =
+proc newResponse*(protocol = Protocol.SHIORI, version = "3.0", status = Status.OK, headers = newOrderedTable[string, string]()): Response =
   return Response(protocol: protocol, version: version, status: status, headers: headers)
 
 proc `$`*(response: Response): string =
   let statusLine = "$1/$2 $3 $4" % [$response.protocol, response.version, $ord(response.status), $response.status] & crlf
   return statusLine & response.headers.toShioriString & crlf
+
+proc statusCode*(response: Response): int = ord(response.status)
+proc `statusCode=`*(response: Response, value: Natural): Status {.discardable.} =
+  response.status = Status(value)
+  return response.status
 
 type ErrorLevel* = enum
   ## SHIORI ErrorLevel header value
@@ -130,15 +135,15 @@ type ErrorLevel* = enum
   critical
 
 proc value*(response: Response): string = response.headers["Value"] ## Value header
-proc `value=`*(response: Response, value: string): string = response.headers["Value"] = value ## Value header
+proc `value=`*(response: Response, value: string): string {.discardable.} = response.headers["Value"] = value ## Value header
 proc marker*(response: Response): string = response.headers["Marker"] ## Marker header
-proc `marker=`*(response: Response, value: string): string = response.headers["Marker"] = value ## Marker header
+proc `marker=`*(response: Response, value: string): string {.discardable.} = response.headers["Marker"] = value ## Marker header
 proc requestCharset*(response: Response): string = response.headers["RequestCharset"] ## RequestCharset header
-proc `requestCharset=`*(response: Response, value: string): string = response.headers["RequestCharset"] = value ## RequestCharset header
+proc `requestCharset=`*(response: Response, value: string): string {.discardable.} = response.headers["RequestCharset"] = value ## RequestCharset header
 proc errorLevel*(response: Response): ErrorLevel = parseEnum[ErrorLevel](response.headers["ErrorLevel"]) # ErrorLevel header
-proc `errorLevel=`*(response: Response, value: ErrorLevel): string = response.headers["ErrorLevel"] = $value # ErrorLevel header
+proc `errorLevel=`*(response: Response, value: ErrorLevel): string {.discardable.} = response.headers["ErrorLevel"] = $value # ErrorLevel header
 proc errorDescription*(response: Response): string = response.headers["ErrorDescription"] ## ErrorDescription header
-proc `errorDescription=`*(response: Response, value: string): string = response.headers["ErrorDescription"] = value ## ErrorDescription header
+proc `errorDescription=`*(response: Response, value: string): string {.discardable.} = response.headers["ErrorDescription"] = value ## ErrorDescription header
 
 type SecurityLevel* = enum
   ## SHIORI SecurityLevel header value
@@ -146,13 +151,14 @@ type SecurityLevel* = enum
   external
 
 proc charset*(message: Request or Response): string = message.headers["Charset"] ## Charset header
-proc `charset=`*(message: Request or Response, value: string): string = message.headers["Charset"] = value ## Charset header
+proc `charset=`*(message: Request or Response, value: string): string {.discardable.} = message.headers["Charset"] = value ## Charset header
 proc sender*(message: Request or Response): string = message.headers["Sender"] ## Sender header
-proc `sender=`*(message: Request or Response, value: string): string = message.headers["Sender"] = value ## Sender header
+proc `sender=`*(message: Request or Response, value: string): string {.discardable.} = message.headers["Sender"] = value ## Sender header
 proc securityLevel*(message: Request or Response): SecurityLevel = parseEnum[SecurityLevel](message.headers["SecurityLevel"]) # SecurityLevel header
-proc `securityLevel=`*(message: Request or Response, value: SecurityLevel): string = message.headers["SecurityLevel"] = $value # SecurityLevel header
+proc `securityLevel=`*(message: Request or Response, value: SecurityLevel): string {.discardable.} = message.headers["SecurityLevel"] = $value # SecurityLevel header
 
 proc reference*(message: Request or Response, index: int): string = message.headers["Reference" & $index] ## Reference* header
+proc reference*(message: Request or Response, index: int, value: string): string {.discardable.} = message.headers["Reference" & $index] = value ## Reference* header
 
 # separated value helper
 
