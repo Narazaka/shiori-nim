@@ -1,2 +1,8 @@
 doc
 nimcache
+*.exe
+*.dll
+*.lib
+*.exp
+*.ilk
+*.pdb
