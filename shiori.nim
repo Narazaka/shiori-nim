@@ -198,7 +198,7 @@ value <- { [^\13\10]* }
 """)
 ]#
 
-let requestLineRe = re"^(GET|NOTIFY) (SHIORI)/(\d+\.\d+)$"
+let requestLineRe = re"^(GET|NOTIFY|GET (?:Version|Sentence|Word|Status|String)|NOTIFY (?:OwnerGhostName|OtherGhostName)|TEACH|TRANSLATE Sentence) (SHIORI)/(\d+\.\d+)$"
 let statusLineRe = re"^(SHIORI)/(\d+\.\d+) (\d+) (.*)$"
 let headerLineRe = re"^([A-Za-z0-9.]+): (.*)$"
 
