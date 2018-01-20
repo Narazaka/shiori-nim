@@ -8,3 +8,6 @@ license       = "MIT"
 # Dependencies
 
 requires "nim >= 0.17.2"
+
+task test, "test":
+    exec "nim c -r tests/parseRequest"
